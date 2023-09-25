@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBE37 v4.1</title>
+    <style>
+        .container-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        #area-buttons {
+            height: 50px;
+        }
+
+        #area-log {
+            height: 250px;
+            overflow-y: scroll;
+            font-family: monospace;
+            padding: 5px;
+            border: solid 1px black;
+            margin-top: 10px;
+        }
+
+        #area-plot {
+            width: 100%;
+            height: 500px;
+        }
+
+        .btn-command {
+            width: 120px;
+        }
+
+        .btn-connected {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="area-buttons" style="display: flex">
+        <div id="btn-before-connect">
+            <select id="baudrate" style="width: 100px; text-align: right;">
+                <option value="2400">2400</option>
+                <option value="4800">4800</option>
+                <option value="9600" selected>default 9600</option>
+                <option value="14400">14400</option>
+                <option value="19200">19200</option>
+            </select>
+            <button class="btn-command" onclick="onClickOpenSerial()">Open</button>
+        </div>
+        <div>
+            <button class="btn-command btn-connected" onclick="sendCommand('ds')">ds</button>
+            <button class="btn-command btn-connected" onclick="sendCommand('outputformat=1')">outputformat=1</button>
+            <button class="btn-command btn-connected"
+                onclick="sendCommand('sampleinterval=6')">sampleinterval=6</button>
+            <br>
+            <button class="btn-command btn-connected" onclick="sendCommand('startnow')">startnow</button>
+            <button class="btn-command btn-connected" onclick="sendCommand('stop')">stop</button>
+        </div>
+    </div>
+    <div id="area-log">
+
+    </div>
+    <div>
+        <button class="btn-command" onclick="document.getElementById('area-log').textContent = ''">Clear Log</button>
+    </div>
+    <div id="area-plot"></div>
+
+    <button onclick="onClickClearPlot()" class="btn-command">Clear Plot</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"></script>
+    
+
+    <script>
+        let data = [];
+        const areaLog = document.getElementById('area-log');
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        let writer, reader;
+
+        function txtLog(text, color) {
+            const e = document.createElement('span');
+            e.style.display = 'block';
+            e.textContent = new Date().toLocaleString('af') + ' ' + text;
+            if (color) {
+                e.style.color = color;
+            }
+            areaLog.appendChild(e);
+
+            if (200 < areaLog.childNodes.length) {
+                areaLog.firstChild.remove();
+            }
+
+            areaLog.scrollTo({ top: areaLog.scrollHeight });
+        }
+
+        async function onClickOpenSerial() {
+            const ebaud = document.getElementById('baudrate');
+            const baud = ebaud.value;
+            const serial = await openSerial(baud);
+            if (serial) {
+                txtLog('Serial opened');
+                window.serial = serial;
+                showButtons(true);
+            } else {
+                txtLog('Failed to open serial');
+            }
+        }
+
+        async function openSerial(baudRate = 9600) {
+            try {
+                const port = await navigator.serial.requestPort();
+                const br = ~~baudRate;
+                await port.open({ baudRate: br });
+
+                // writer
+                writer = port.writable.getWriter();
+
+                // reader, split with linefeed
+                let readBuffer = new Uint8Array();
+                setReader(port, (arr) => {
+                    readBuffer = concatAB(readBuffer, arr);
+
+                    while (true) {
+                        const idx = readBuffer.findIndex(item => 10 === item); // linefeed only
+                        if (-1 === idx) {
+                            break;
+                        }
+
+                        const line = readBuffer.slice(0, idx);
+                        readBuffer = readBuffer.slice(idx + 1);
+
+                        if (onEnter) {
+                            const lineStr = decoder.decode(line);
+                            onEnter(lineStr);
+                        }
+                    }
+                });
+
+                return port;
+            } catch (e) {
+                console.log(`Failed to open serial port`);
+                console.error(e);
+
+                return undefined;
+            }
+        }
+
+        function onEnter(line) {
+            txtLog(line);
+
+            if (0 === line.indexOf('#')) {
+                const parsed = parseSBE37(line);
+                if(0 < parsed.f.length) {
+                    data.push([new Date(), parsed.f[0]]);
+                    onDataUpdated();
+                }
+            }
+        }
+
+        function concatAB(b1, b2) {
+            const tmp = new Uint8Array(b1.byteLength + b2.byteLength);
+            tmp.set(new Uint8Array(b1), 0);
+            tmp.set(new Uint8Array(b2), b1.byteLength);
+            return tmp;
+        }
+
+        async function writeSerial(data) {
+            txtLog(data, 'red');
+            const ab = encoder.encode(data);
+            return await writer.write(ab);
+        }
+
+        function setReader(port, fn) {
+            const timer = setTimeout(async () => {
+                while (port.readable) {
+                    const reader = port.readable.getReader();
+                    try {
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            if (done) {
+                                console.log('Read Done');
+                                break;
+                            }
+
+                            if (fn) {
+                                fn(value);
+                            } else {
+                                console.log(value);
+                            }
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    } finally {
+                        reader.releaseLock();
+                    }
+                }
+            }, 1);
+
+            return timer;
+        }
+
+        function showButtons(b) {
+            const list = Array.from(document.querySelectorAll('.btn-connected'));
+            if (b) {
+                list.forEach(e => e.style.display = 'inline-block');
+                document.getElementById('btn-before-connect').style.display = 'none';
+            } else {
+                list.forEach(e => e.style.display = 'none');
+                document.getElementById('btn-before-connect').style.display = 'block';
+            }
+        }
+
+        async function sendCommand(str) {
+            const r = await writeSerial(str + '\r\n');
+        }
+
+        // #  23.6187,  0.00008,    0.031,   0.0113, 08 Sep 2023, 11:08:45
+        function parseSBE37(line) {
+            const sep = line.split(',');
+            const f = [];
+            const dateStr = sep.at(-2) + sep.at(-1);
+            const date = new Date(dateStr);
+            for (let i = 0; i < sep.length - 2; i++) {
+                const str = sep[i].replace('#', '');
+                const v = parseFloat(str);
+                f.push(v);
+            }
+
+            const result = {
+                f: f,
+                date: date,
+                dateStr: dateStr,
+            }
+
+            return result;
+        }
+
+        function onClickClearPlot() {
+            data = [];
+        }
+
+        function onDataUpdated() {
+            if (!data || 0 === data.length) {
+                console.log('data is empty');
+                return;
+            }
+
+            const p = document.getElementById('area-plot');
+            const rect = p.getBoundingClientRect();
+
+            const svg = Plot.plot({
+                grid: true,
+                height: 500,
+                style: { fontSize: 15 },
+                width: ~~rect.width,
+                marginTop: 40,
+                marginLeft: 80,
+                marginBottom: 45,
+                y: { label: 'Temperature' },
+                x: {
+                    tickFormat: d => d.toLocaleTimeString('af').substring(0, 5),
+                    label: 'PC Local time'
+                },
+                marks: [
+                    Plot.frame(),
+                    Plot.dot(data, { x: '0', y: '1' }),
+                ]
+            });
+
+            p.textContent = '';
+            p.appendChild(svg);
+        }
+
+        txtLog('Program loaded');
+
+    </script>
+</body>
+
+</html>
