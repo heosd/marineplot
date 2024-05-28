@@ -57,6 +57,9 @@
             <button class="btn-command btn-connected" onclick="sendCommand('outputformat=1')">outputformat=1</button>
             <button class="btn-command btn-connected"
                 onclick="sendCommand('sampleinterval=6')">sampleinterval=6</button>
+            <button class="btn-command btn-connected" onclick="sendCommandDateTime('lt')">DateTime LT</button>
+            <button class="btn-command btn-connected" onclick="sendCommandDateTime('utc')">DateTime UTC</button>
+
             <br>
             <button class="btn-command btn-connected" onclick="sendCommand('startnow')">startnow</button>
             <button class="btn-command btn-connected" onclick="sendCommand('stop')">stop</button>
@@ -75,7 +78,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"></script>
-    
+
 
     <script>
         let data = [];
@@ -157,7 +160,7 @@
 
             if (0 === line.indexOf('#')) {
                 const parsed = parseSBE37(line);
-                if(0 < parsed.f.length) {
+                if (0 < parsed.f.length) {
                     data.push([new Date(), parsed.f[0]]);
                     onDataUpdated();
                 }
@@ -219,6 +222,52 @@
 
         async function sendCommand(str) {
             const r = await writeSerial(str + '\r\n');
+        }
+
+        function sendCommandDateTime(type) {
+            // Set real-time clock. Format is mmddyyyyhhmmss
+
+            let str = '';
+
+            if ('lt' === type) {
+                const now = new Date();
+                const mm = now.getMonth() + 1;
+                const dd = now.getDate();
+                const yyyy = now.getFullYear();
+                const hh = now.getHours();
+                const min = now.getMinutes();
+                const ss = now.getSeconds();
+
+                const list = [
+                    [mm, 2],
+                    [dd, 2],
+                    [yyyy, 4],
+                    [hh, 2],
+                    [min, 2],
+                    [ss, 2]
+                ];
+                str = list.map(d => String(d[0]).padStart(d[1], '0')).join('');
+            } else if ('utc' === type) {
+                const now = new Date();
+                const mm = now.getUTCMonth() + 1;
+                const dd = now.getUTCDate();
+                const yyyy = now.getUTCFullYear();
+                const hh = now.getUTCHours();
+                const min = now.getUTCMinutes();
+                const ss = now.getUTCSeconds();
+
+                const list = [
+                    [mm, 2],
+                    [dd, 2],
+                    [yyyy, 4],
+                    [hh, 2],
+                    [min, 2],
+                    [ss, 2]
+                ];
+                str = list.map(d => String(d[0]).padStart(d[1], '0')).join('');
+            }
+
+            sendCommand(`DateTime=${str}`);
         }
 
         // #  23.6187,  0.00008,    0.031,   0.0113, 08 Sep 2023, 11:08:45
