@@ -13,11 +13,11 @@
         }
 
         #area-buttons {
-            height: 50px;
+            height: 140px;
         }
 
         #area-log {
-            height: 250px;
+            height: 350px;
             overflow-y: scroll;
             font-family: monospace;
             padding: 5px;
@@ -37,11 +37,20 @@
         .btn-connected {
             display: none;
         }
+
+        .btn-parent>button {
+            width: 120px;
+        }
+
+        #btn-after-connect-fw2,
+        #btn-after-connect-fw3 {
+            display: none;
+        }
     </style>
 </head>
 
 <body>
-    <div id="area-buttons" style="display: flex">
+    <div id="area-buttons">
         <div id="btn-before-connect">
             <select id="baudrate" style="width: 100px; text-align: right;">
                 <option value="2400">2400</option>
@@ -50,27 +59,109 @@
                 <option value="14400">14400</option>
                 <option value="19200">19200</option>
             </select>
-            <button class="btn-command" onclick="onClickOpenSerial()">Open</button>
+            <button onclick="onClickOpenSerial()">Open</button>
+            <button onclick="console.log(mem)">Check</button>
         </div>
-        <div>
-            <button class="btn-command btn-connected" onclick="sendCommand('ds')">ds</button>
-            <button class="btn-command btn-connected" onclick="sendCommand('outputformat=1')">outputformat=1</button>
-            <button class="btn-command btn-connected"
-                onclick="sendCommand('sampleinterval=6')">sampleinterval=6</button>
-            <button class="btn-command btn-connected" onclick="sendCommandDateTime('lt')">DateTime LT</button>
-            <button class="btn-command btn-connected" onclick="sendCommandDateTime('utc')">DateTime UTC</button>
 
-            <br>
-            <button class="btn-command btn-connected" onclick="sendCommand('startnow')">startnow</button>
-            <button class="btn-command btn-connected" onclick="sendCommand('stop')">stop</button>
-            <button class="btn-command btn-connected" onclick="sendCommand('qs')">qs</button>
+        <div class="btn-parent">
+            <button onclick="onClickEQ('SBE37FW2')">SBE37 V2</button>
+            <button onclick="onClickEQ('SBE37FW3')">SBE37 V3</button>
         </div>
+
+        <!-- FW V 2 -->
+        <div id="btn-after-connect-fw2">
+            <div style="display: grid; grid-template-columns: 1fr 1fr">
+                <span class="btn-parent">
+                    <button onclick="sendCommandID('ds')">ds</button>
+                    <button onclick="sendCommandID('dc')">dc</button>
+    
+                    <button onclick="sendCommandIDParam('format')"
+                        oncontextmenu="onMenuBatch(this, 'format', 'Format=', '1');return false;">Format=?</button>
+                    <button onclick="sendCommandIDParam('interval')"
+                        oncontextmenu="onMenuBatch(this, 'interval', 'interval=x Seconds', '6');return false;">interval=?</button>
+                    <button onclick="sendCommandID('storetime=y')">storetime=y</button>
+                    <button onclick="sendCommandID('samplenum=0')">samplenum=0</button>
+                </span>
+                <span class="btn-parent" style="text-align: right;">
+                    <span>Inductive modem</span>
+                    <button onclick="sendCommand('ds')">ds</button>
+                    <button onclick="sendCommand('id?=')">id?=</button>
+                    <button id="btn-set-id" oncontextmenu="setID(); return false;">Set ID</button>
+                </span>
+            </div>
+            <div class="btn-parent">
+                <button onclick="sendCommandDate('lt')">MMDDYY LT</button>
+                <button onclick="sendCommandTime('lt')">HHMMSS LT</button>
+                <button onclick="sendCommandDate('utc')">MMDDYY UTC</button>
+                <button onclick="sendCommandTime('utc')">HHMMSS UTC</button>
+                <button style="width: 240px;" onclick="sendCommandIDParam('startmmddyy')"
+                    oncontextmenu="onMenuStartDate(this); return false;">StartMMDDYY</button>
+                <button style="width: 240px;" onclick="sendCommandIDParam('starthhmmss')"
+                    oncontextmenu="onMenuStartTime(this); return false;">StartHHMMSS</button>
+
+            </div>
+            <div class="btn-parent">
+                <button onclick="sendCommandID('startnow')">StartNow</button>
+                <button onclick="sendCommandID('startlater')">StartLater</button>
+                <button onclick="sendCommandID('stop')">Stop</button>
+                <button onclick="sendCommandID('qs')">qs</button>
+            </div>
+        </div>
+
+        <!-- FW V 3 -->
+        <div id="btn-after-connect-fw3">
+            <div style="display: grid; grid-template-columns: 1fr 1fr">
+                <span class="btn-parent">
+                    <button onclick="sendCommandIDParam('outputformat')"
+                        oncontextmenu="onMenuBatch(this, 'outputformat', 'OutputFormat=', '1');return false;">outputformat=1</button>
+                    <button onclick="sendCommandIDParam('sampleinterval')"
+                        oncontextmenu="onMenuBatch(this, 'sampleinterval', 'SampleInterval=x Seconds', '6');return false;">sampleinterval=6</button>
+                    <button onclick="sendCommandDateTime('lt')">DateTime LT</button>
+                    <button onclick="sendCommandDateTime('utc')">DateTime UTC</button>
+                    <button onclick="sendCommandID('initlogging')">InitLogging</button>
+                </span>
+                <span class="btn-parent" style="text-align: right;">
+                    <span>Inductive modem</span>
+                    <button onclick="sendCommand('ds')">ds</button>
+                    <button onclick="sendCommand('id?=')">id?=</button>
+                    <button id="btn-set-id" oncontextmenu="setID(); return false;">Set ID</button>
+                </span>
+            </div>
+            <div class="btn-parent">
+                <button onclick="sendCommandID('ds')">ds</button>
+                <button onclick="sendCommandID('getsd')">GetSD</button>
+                <button onclick="sendCommandID('getcc')">GetCC</button>
+                <button onclick="sendCommandID('getHD')">GetHD</button>
+                <button onclick="sendCommandID('startnow')">StartNow</button>
+                <button style="width: 240px;" onclick="sendCommandIDParam('startdatetime')"
+                    oncontextmenu="onMenuStartDateTime(this); return false;">StartDateTime</button>
+                <button onclick="sendCommandID('startlater')">StartLater</button>
+                <button onclick="sendCommandID('stop')">Stop</button>
+                <button onclick="sendCommandID('qs')">qs</button>
+            </div>
+            <!--
+            <br>
+            <button onclick="sendCommand('#02ds')">02ds</button>
+            <button onclick="sendCommand('#02qs')">02qs</button>
+            <button onclick="startCommand()">run</button>
+            <button onclick="stopCommand()">stop</button>
+            <button onclick="clearQueue()">clear</button>
+            <button onclick="testCommand1()">Command T1</button>
+            -->
+        </div>
+        <!-- Input -->
+        <div>
+            <input id="input-command" type="text" style="width: 400px;">
+            <button onclick="onClickSendCommand()">Send</button>
+        </div>
+
+
     </div>
     <div id="area-log">
 
     </div>
     <div>
-        <button class="btn-command" onclick="document.getElementById('area-log').textContent = ''">Clear Log</button>
+        <button onclick="document.getElementById('area-log').textContent = ''">Clear Log</button>
     </div>
     <div id="area-plot"></div>
 
@@ -81,11 +172,19 @@
 
 
     <script>
+        const mem = new Map();
+
         let data = [];
         const areaLog = document.getElementById('area-log');
         const encoder = new TextEncoder();
         const decoder = new TextDecoder();
         let writer, reader;
+
+        document.getElementById('input-command').addEventListener('keyup', (e) => {
+            if('Enter' === e.key) {
+                onClickSendCommand();
+            }
+        });
 
         function txtLog(text, color) {
             const e = document.createElement('span');
@@ -177,7 +276,11 @@
         async function writeSerial(data) {
             txtLog(data, 'red');
             const ab = encoder.encode(data);
-            return await writer.write(ab);
+            if (writer) {
+                return await writer.write(ab);
+            } else {
+                console.error(`No Writer`);
+            }
         }
 
         function setReader(port, fn) {
@@ -209,6 +312,13 @@
             return timer;
         }
 
+        function onClickSendCommand() {
+            const e = document.getElementById('input-command');
+            const command = e.value;
+            sendCommand(command);
+            e.value = '';
+        }
+
         function showButtons(b) {
             const list = Array.from(document.querySelectorAll('.btn-connected'));
             if (b) {
@@ -220,54 +330,246 @@
             }
         }
 
+        function onClickEQ(eq) {
+            if ('SBE37FW2' === eq) {
+                document.getElementById('btn-after-connect-fw2').style.display = 'block';
+                document.getElementById('btn-after-connect-fw3').style.display = 'none';
+            } else if ('SBE37FW3' === eq) {
+                document.getElementById('btn-after-connect-fw2').style.display = 'none';
+                document.getElementById('btn-after-connect-fw3').style.display = 'block';
+            }
+        }
+
         async function sendCommand(str) {
             const r = await writeSerial(str + '\r\n');
         }
 
-        function sendCommandDateTime(type) {
-            // Set real-time clock. Format is mmddyyyyhhmmss
+        async function sendCommandID(str) {
+            const eqid = mem.get('id');
+            if (eqid && 2 === eqid.length) {
+                await sendCommand(`#${eqid}${str}`);
+            } else {
+                await sendCommand(str);
+            }
+        }
 
-            let str = '';
+        async function sendCommandIDParam(str) {
+            const v = mem.get(str);
+            await sendCommandID(`${str}=${v}`);
+        }
 
+        function onMenuBatch(e, key, title, falsyDefault) {
+            onMenu(key, title, falsyDefault);
+            refreshBtn(e, key);
+        }
+
+        function onMenu(key, title, falsyDefault) {
+            const v = mem.get(key);
+
+            const input = prompt(title ?? key, v ?? '');
+            if (input) {
+                mem.set(key, input);
+            } else if (falsyDefault) {
+                mem.set(key, falsyDefault);
+            } else {
+                mem.delete(key);
+            }
+        }
+
+        function refreshBtn(e, key) {
+            const v = mem.get(key);
+            e.textContent = `${key}=${v}`;
+        }
+
+        function onMenuStartDateTime(e) {
+            const k = 'startdatetime';
+            const v = mem.get(k);
+            if (!v || 14 !== v.length) {
+                const defaultValue = getStartDateTime2H();
+                mem.set(k, defaultValue);
+            }
+            onMenu(k, 'mmddyyyy hhmmss');
+            refreshBtn(e, k);
+        }
+
+        function onMenuStartDate(e) {
+            const k = 'startmmddyy';
+            const v = mem.get(k);
+            if (!v || 6 !== v.length) {
+                const now = new Date();
+                now.setHours(now.getHours() + 2);
+                const str = getMMDDYYYY('lt', now, 2);
+                mem.set(k, str);
+            }
+            onMenu(k, 'mmddyyyy');
+            refreshBtn(e, k);
+        }
+
+        function onMenuStartTime(e) {
+            const k = 'starthhmmss';
+            const v = mem.get(k);
+            if (!v || 6 !== v.length) {
+                const now = new Date();
+                now.setHours(now.getHours() + 2);
+                const str = getHHMMSS('lt', now);
+                mem.set(k, str);
+            }
+            onMenu(k, 'hhmmss');
+            refreshBtn(e, k);
+        }
+
+        function getStartDateTime2H() {
+            // mmddyyyyhhmmss
+            const now = new Date();
+            now.setHours(now.getHours() + 2);
+            const str = getMMDDYYYY('lt', now) + getHHMMSS('lt', now);
+
+            return str;
+        }
+
+        function getMMDDYYYY(type = 'lt', date = new Date(), yearLen = 4) {
+            const v = {};
             if ('lt' === type) {
-                const now = new Date();
-                const mm = now.getMonth() + 1;
-                const dd = now.getDate();
-                const yyyy = now.getFullYear();
-                const hh = now.getHours();
-                const min = now.getMinutes();
-                const ss = now.getSeconds();
-
-                const list = [
-                    [mm, 2],
-                    [dd, 2],
-                    [yyyy, 4],
-                    [hh, 2],
-                    [min, 2],
-                    [ss, 2]
-                ];
-                str = list.map(d => String(d[0]).padStart(d[1], '0')).join('');
+                v.mm = date.getMonth() + 1;
+                v.dd = date.getDate();
+                v.yyyy = date.getFullYear();
             } else if ('utc' === type) {
-                const now = new Date();
-                const mm = now.getUTCMonth() + 1;
-                const dd = now.getUTCDate();
-                const yyyy = now.getUTCFullYear();
-                const hh = now.getUTCHours();
-                const min = now.getUTCMinutes();
-                const ss = now.getUTCSeconds();
-
-                const list = [
-                    [mm, 2],
-                    [dd, 2],
-                    [yyyy, 4],
-                    [hh, 2],
-                    [min, 2],
-                    [ss, 2]
-                ];
-                str = list.map(d => String(d[0]).padStart(d[1], '0')).join('');
+                v.mm = date.getUTCMonth() + 1;
+                v.dd = date.getUTCDate();
+                v.yyyy = date.getUTCFullYear();
             }
 
-            sendCommand(`DateTime=${str}`);
+            const list = [
+                [v.mm, 2],
+                [v.dd, 2],
+                [v.yyyy, yearLen],
+            ];
+
+            const str = list.map(d => String(d[0]).padStart(d[1], '0').substr(-d[1])).join('');
+
+            return str;
+        }
+
+        function getHHMMSS(type = 'lt', date = new Date()) {
+            const v = {};
+            if ('lt' === type) {
+                v.hh = date.getHours();
+                v.min = date.getMinutes();
+                v.ss = date.getSeconds();
+            } else if ('utc' === type) {
+                v.hh = date.getUTCHours();
+                v.min = date.getUTCMinutes();
+                v.ss = date.getUTCSeconds();
+            }
+
+            const list = [
+                [v.hh, 2],
+                [v.min, 2],
+                [v.ss, 2],
+            ];
+
+            const str = list.map(d => String(d[0]).padStart(d[1], '0')).join('');
+
+            return str;
+        }
+
+        function sendCommandDateTime(type) {
+            // Set real-time clock. Format is mmddyyyyhhmmss
+            const now = new Date();
+            let str = getMMDDYYYY(type, now) + getHHMMSS(type, now);
+            sendCommandID(`DateTime=${str}`);
+        }
+
+        function sendCommandDate(type) {
+            // Set real-time clock. Format is mmddyyyy
+            let str = getMMDDYYYY(type);
+            sendCommandID(`MMDDYYYY=${str}`);
+        }
+
+        function sendCommandTime(type) {
+            // Set real-time clock. Format is hhmmss
+            let str = getHHMMSS(type);
+            sendCommandID(`HHMMSS=${str}`);
+        }
+
+        function setID() {
+            const id = prompt('What is your id? ex) 02');
+            if (!id) {
+                alert('Invalid id, cleared');
+                mem.delete('id');
+            } else if (1 === id.length) {
+                mem.set('id', '0' + id);
+            } else if (2 === id.length) {
+                mem.set('id', id);
+            } else {
+                alert('Invalid id, cleared');
+                mem.delete('id');
+            }
+
+            refreshBtnSetID();
+        }
+
+        function refreshBtnSetID() {
+            const e = document.getElementById('btn-set-id');
+            const eqid = mem.get('id');
+            if (eqid) {
+                e.textContent = 'ID #' + eqid;
+            } else {
+                e.textContent = 'Set ID';
+            }
+        }
+
+        let cmdQ = [];
+        function commandQueue(str, after = 0) {
+            cmdQ.push({ cmd: str, after: after });
+        }
+
+        function startCommand() {
+            if (window.runQueue) {
+                alert('Already Running')
+                return;
+            }
+
+            window.runQueue = setInterval(async () => {
+                const exec = cmdQ.filter(d => 0 >= d.after);
+                for (let i = 0; i < exec.length; i++) {
+                    const item = exec[i];
+                    await sendCommand(item.cmd);
+                }
+
+                cmdQ = cmdQ.filter(d => 0 < d.after);
+                cmdQ.forEach(d => d.after = d.after - 1);
+
+            }, 1000);
+        }
+
+        function clearQueue() {
+            cmdQ = [];
+        }
+
+        function stopCommand() {
+            if (window.runQueue) {
+                clearInterval(window.runQueue);
+                window.runQueue = undefined;
+            }
+        }
+
+        function ds02() {
+            sendCommand()
+        }
+
+        function testCommand1() {
+            commandQueue('#02tsr', 1);
+            commandQueue('#02outputformat=0', 10);
+            commandQueue('#02sl', 12);
+            commandQueue('#02outputformat=1', 14);
+            commandQueue('#02sl', 16);
+            commandQueue('#02outputformat=2', 18);
+            commandQueue('#02sl', 20);
+            commandQueue('#02outputformat=3', 22);
+            commandQueue('#02sl', 24);
+            commandQueue('#02outputformat=4', 26);
+            commandQueue('#02sl', 28);
         }
 
         // #  23.6187,  0.00008,    0.031,   0.0113, 08 Sep 2023, 11:08:45
