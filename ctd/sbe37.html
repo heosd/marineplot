@@ -66,6 +66,7 @@
         <div class="btn-parent">
             <button onclick="onClickEQ('SBE37FW2')">SBE37 V2</button>
             <button onclick="onClickEQ('SBE37FW3')">SBE37 V3</button>
+            <button onclick="onClickFile()">Save file</button>
         </div>
 
         <!-- FW V 2 -->
@@ -74,7 +75,7 @@
                 <span class="btn-parent">
                     <button onclick="sendCommandID('ds')">ds</button>
                     <button onclick="sendCommandID('dc')">dc</button>
-    
+
                     <button onclick="sendCommandIDParam('format')"
                         oncontextmenu="onMenuBatch(this, 'format', 'Format=', '1');return false;">Format=?</button>
                     <button onclick="sendCommandIDParam('interval')"
@@ -148,6 +149,19 @@
             <button onclick="clearQueue()">clear</button>
             <button onclick="testCommand1()">Command T1</button>
             -->
+
+            <div class="btn-parent">
+                <label for="sample-start">From</label>
+                <input id="sample-start" type="number" value="1" min="1">
+                <label for="sample-end">To</label>
+                <input id="sample-end" type="number" value="100">
+                <label for="sample-step">Step</label>
+                <input id="sample-step" type="number" value="100" max="200">
+                <label for="sample-idle">Idle seconds</label>
+                <input id="sample-idle" type="number" value="3">
+                <button onclick="onClickGetSamples(true)">GetSamples</button>
+                <button onclick="onClickGetSamples(false)">Stop</button>
+            </div>
         </div>
         <!-- Input -->
         <div>
@@ -175,21 +189,61 @@
         const mem = new Map();
 
         let data = [];
+        let fileHandle = undefined, fileWritable = undefined; // local file to save
         const areaLog = document.getElementById('area-log');
         const encoder = new TextEncoder();
         const decoder = new TextDecoder();
         let writer, reader;
 
         document.getElementById('input-command').addEventListener('keyup', (e) => {
-            if('Enter' === e.key) {
+            if ('Enter' === e.key) {
                 onClickSendCommand();
             }
         });
 
+        async function onClickFile() {
+            if (fileHandle) {
+                if (confirm('Do you want to close this file?')) {
+                    fileHandle = undefined;
+                    fileWritable.close();
+                } else {
+                    return;
+                }
+            }
+
+            try {
+                const newHandle = await window.showSaveFilePicker();
+
+                const file = await newHandle.getFile();
+                const writableStream = await newHandle.createWritable({ keepExistingData: true });
+                await writableStream.seek(file.size);
+
+                fileHandle = newHandle;
+                fileWritable = writableStream;
+
+            } catch (e) {
+                fileHandle = undefined;
+                console.log('User aborted');
+            }
+        }
+
+        // frequent open close
+        async function appendFile(str) {
+            if (!fileHandle) {
+                return;
+            }
+
+            // -- At the end
+
+            await fileWritable.write(str);
+            // await writableStream.close();
+        }
+
         function txtLog(text, color) {
             const e = document.createElement('span');
             e.style.display = 'block';
-            e.textContent = new Date().toLocaleString('af') + ' ' + text;
+            const tsText = new Date().toLocaleString('af') + ' ' + text;
+            e.textContent = tsText;
             if (color) {
                 e.style.color = color;
             }
@@ -200,6 +254,9 @@
             }
 
             areaLog.scrollTo({ top: areaLog.scrollHeight });
+
+            // text with timestamp
+            appendFile(tsText);
         }
 
         async function onClickOpenSerial() {
@@ -229,6 +286,10 @@
                 setReader(port, (arr) => {
                     readBuffer = concatAB(readBuffer, arr);
 
+                    if (onChar) {
+                        onChar(arr);
+                    }
+
                     while (true) {
                         const idx = readBuffer.findIndex(item => 10 === item); // linefeed only
                         if (-1 === idx) {
@@ -254,6 +315,10 @@
             }
         }
 
+        function onChar(arr) {
+            window.lastMessageTS = new Date();
+        }
+
         function onEnter(line) {
             txtLog(line);
 
@@ -262,6 +327,12 @@
                 if (0 < parsed.f.length) {
                     data.push([new Date(), parsed.f[0]]);
                     onDataUpdated();
+                }
+            } else if (-1 != line.indexOf('samplenumber')) {
+                // ds -> samplenumber
+                const samplenumber = parseInt(line.match(/samplenumber = (\d+),/)?.[1] ?? -1);
+                if (!isNaN(samplenumber)) {
+                    window.samplenumber = samplenumber;
                 }
             }
         }
@@ -342,6 +413,7 @@
 
         async function sendCommand(str) {
             const r = await writeSerial(str + '\r\n');
+            window.lastCommandTS = new Date();
         }
 
         async function sendCommandID(str) {
@@ -519,6 +591,92 @@
             }
         }
 
+        /**
+         * GetSamples
+         **/
+        function execIntervalGetSamples() {
+            const recv = window.lastMessageTS?.getTime() ?? 0;
+            const send = window.lastCommandTS?.getTime() ?? 0;
+
+            console.log(`recv : ${recv}, send ${send}`);
+
+            const ts = Math.max(recv, send);
+
+            if (!ts) {
+                return;
+            }
+
+            const now = new Date().getTime();
+            const diff = Math.floor((now - ts) / 1000);
+
+            const idle = document.getElementById('sample-idle');
+            const vIdle = ~~idle.value;
+
+            if (diff >= vIdle) {
+                // execute Idle, send will be reset
+                const start = document.getElementById('sample-start');
+                const end = document.getElementById('sample-end');
+                const step = document.getElementById('sample-step');
+
+                const vStart = ~~start.value;
+                const vEnd = ~~end.value;
+                const vStep = ~~step.value;
+
+                const commandGetSamples = `GetSamples:${vStart},${vEnd}`;
+
+                // send Command
+                sendCommandID(commandGetSamples);
+
+                // update next step
+                const nextStart = vStart + vStep;
+                const nextEnd = nextStart + vStep - 1;
+
+                // in case, got samplenumber from 'ds' command
+                if (0 < window.samplenumber) {
+                    const no = window.samplenumber;
+                    start.value = no < nextStart ? no : nextStart;
+                    end.value = no < nextEnd ? no : nextEnd;
+
+                    if (no < nextStart) {
+                        // -- stop
+                        onClickGetSamples(false);
+                    }
+                } else {
+                    start.value = nextStart;
+                    end.value = nextEnd;
+                }
+            }
+        }
+
+        function onClickGetSamples(start) {
+            if (start) {
+                if (window.intervalGetSamples) {
+                    console.log('Interval already works');
+                    return;
+                }
+
+                window.intervalGetSamples = setInterval(execIntervalGetSamples, 1000);
+            } else {
+                // stop
+                if (window.intervalGetSamples) {
+                    clearInterval(window.intervalGetSamples);
+                    window.intervalGetSamples = undefined;
+                    console.log('Stopped interval');
+                    return;
+                }
+
+                console.log('No Interval set');
+            }
+        }
+
+        /**
+         * End of GetSamples
+         **/
+
+
+        /**
+         * CommandQueue
+         **/
         let cmdQ = [];
         function commandQueue(str, after = 0) {
             cmdQ.push({ cmd: str, after: after });
@@ -553,6 +711,11 @@
                 window.runQueue = undefined;
             }
         }
+
+        /**
+         * End of CommandQueue
+         **/
+
 
         function ds02() {
             sendCommand()
