@@ -43,7 +43,8 @@
         }
 
         #btn-after-connect-fw2,
-        #btn-after-connect-fw3 {
+        #btn-after-connect-fw3,
+        #btn-after-connect-fw2-download {
             display: none;
         }
     </style>
@@ -65,6 +66,7 @@
 
         <div class="btn-parent">
             <button onclick="onClickEQ('SBE37FW2')">SBE37 V2</button>
+            <button onclick="onClickEQ('SBE37FW2Download')">SBE37 V2Down</button>
             <button onclick="onClickEQ('SBE37FW3')">SBE37 V3</button>
             <button onclick="onClickFile()">Save file</button>
         </div>
@@ -106,6 +108,41 @@
                 <button onclick="sendCommandID('startlater')">StartLater</button>
                 <button onclick="sendCommandID('stop')">Stop</button>
                 <button onclick="sendCommandID('qs')">qs</button>
+            </div>
+        </div>
+
+        <!-- FW V 2 -->
+        <div id="btn-after-connect-fw2-download">
+            <div style="display: grid; grid-template-columns: 1fr 1fr">
+                <span class="btn-parent">
+                    <button onclick="sendCommandID('ds')">ds</button>
+                    <button onclick="sendCommandID('dc')">dc</button>
+
+                    <button onclick="sendCommandIDParam('format')"
+                        oncontextmenu="onMenuBatch(this, 'format', 'Format=', '1');return false;">Format=?</button>
+                </span>
+                <span class="btn-parent" style="text-align: right;">
+                    <span>Inductive modem</span>
+                    <button onclick="sendCommand('ds')">ds</button>
+                    <button onclick="sendCommand('id?=')">id?=</button>
+                    <button id="btn-set-id" oncontextmenu="setID(); return false;">Set ID</button>
+                </span>
+            </div>
+            <div class="btn-parent">
+                <button onclick="sendCommandID('stop')">Stop</button>
+                <button onclick="sendCommandID('qs')">qs</button>
+            </div>
+            <div class="btn-parent">
+                <label for="sample-start">From</label>
+                <input id="sample-start" type="number" value="1" min="1">
+                <label for="sample-end">To</label>
+                <input id="sample-end" type="number" value="100">
+                <label for="sample-step">Step</label>
+                <input id="sample-step" type="number" value="100" max="200">
+                <label for="sample-idle">Idle seconds</label>
+                <input id="sample-idle" type="number" value="3">
+                <button onclick="onClickGetSamples(true)">DD</button>
+                <button onclick="onClickGetSamples(false)">Stop</button>
             </div>
         </div>
 
@@ -405,9 +442,16 @@
             if ('SBE37FW2' === eq) {
                 document.getElementById('btn-after-connect-fw2').style.display = 'block';
                 document.getElementById('btn-after-connect-fw3').style.display = 'none';
+                document.getElementById('btn-after-connect-fw2-download').style.display = 'none';
+            } else if ('SBE37FW2Download' === eq) {
+                document.getElementById('btn-after-connect-fw2').style.display = 'none';
+                document.getElementById('btn-after-connect-fw3').style.display = 'none';
+                document.getElementById('btn-after-connect-fw2-download').style.display = 'block';
+
             } else if ('SBE37FW3' === eq) {
                 document.getElementById('btn-after-connect-fw2').style.display = 'none';
                 document.getElementById('btn-after-connect-fw3').style.display = 'block';
+                document.getElementById('btn-after-connect-fw2-download').style.display = 'none';
             }
         }
 
@@ -592,8 +636,24 @@
         }
 
         /**
-         * GetSamples
+         * GetSamples, dd
          **/
+
+        function getDDCommand() {
+            const e2 = document.getElementById('btn-after-connect-fw2-download');
+            const e3 = document.getElementById('btn-after-connect-fw3');
+
+            let command = 'GetSamples:';
+
+            if('block' === e2.style.display) {
+                command = 'dd';
+            } else if('block' === e3.style.display) {
+                command = 'GetSamples:';
+            }
+
+            return command;
+        }
+
         function execIntervalGetSamples() {
             const recv = window.lastMessageTS?.getTime() ?? 0;
             const send = window.lastCommandTS?.getTime() ?? 0;
@@ -622,7 +682,9 @@
                 const vEnd = ~~end.value;
                 const vStep = ~~step.value;
 
-                const commandGetSamples = `GetSamples:${vStart},${vEnd}`;
+                const command = getDDCommand();
+
+                const commandGetSamples = `${command}${vStart},${vEnd}`;
 
                 // send Command
                 sendCommandID(commandGetSamples);
